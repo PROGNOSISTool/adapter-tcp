@@ -6,4 +6,4 @@ COPY . /code
 WORKDIR /code
 RUN ant -f Mapper/build.xml dist
 WORKDIR /root
-CMD iptables -A OUTPUT -p tcp --tcp-flags RST RST -j DROP && wait-for-it implementation:44344 -s -- wait-for-it database:5432 -s -- python3 -u /code/Adapter/Adapter.py
+CMD iptables -A OUTPUT -p tcp --tcp-flags RST RST -j DROP && wait-for-it -t 60 implementation:44344 -s -- wait-for-it database:5432 -s -- python3 -u /code/Adapter/Adapter.py
