@@ -2,6 +2,7 @@ from typing import List
 import socket
 import socketserver
 import sys
+import yaml
 from scapy.all import *
 from scapy.layers.inet import IP, TCP
 from Mapper import Mapper
@@ -16,16 +17,18 @@ logging.basicConfig(level=logging.DEBUG, format="%(name)s: %(message)s")
 
 
 class Adapter:
-    mapper: Mapper = Mapper()
-    oracleTable: OracleTable = OracleTable(
-        "postgresql://prognosis:prognosis@database/prognosis"
-    )
-    localAddr: str = socket.gethostbyname(socket.gethostname())
-    impAddress: str = socket.gethostbyname("implementation")
-    timeout = 0.4
-    connection = IP(src=localAddr, dst=impAddress, flags="DF", version=4)
-    tracker: Tracker = Tracker("eth0", impAddress)
-    logger = logging.getLogger("Adapter")
+    
+    def __init__(self, impIp, impPort, timeout, interface, oracleTableURL):
+        self.mapper =  Mapper(impPort)
+        self.localAddr = socket.gethostbyname(socket.gethostname())
+        self.impAddress = socket.gethostbyname(impIp)
+        self.connection = IP(src=self.localAddr, dst=self.impAddress, flags="DF", version=4)
+        self.oracleTable = OracleTable(oracleTableURL)
+        self.timeout = timeout
+        self.interface = interface
+        self.tracker = Tracker(interface, self.impAddress)
+        self.logger = logging.getLogger("Adapter")
+        return
 
     def stop(self):
         self.tracker.stop()
@@ -60,7 +63,7 @@ class Adapter:
                 self.logger.info("Concrete Symbol In: " + concreteSymbolIn.toJSON())
 
                 self.tracker.clearLastResponse()
-                send([self.connection / packetIn], iface="eth0", verbose=True)
+                send([self.connection / packetIn], iface=self.interface, verbose=True)
                 concreteSymbolOut: ConcreteSymbol = self.tracker.sniffForResponse(
                     packetIn[TCP].dport, packetIn[TCP].sport, self.timeout
                 )
@@ -126,17 +129,21 @@ class QueryRequestHandler(socketserver.StreamRequestHandler):
 
 
 class AdapterServer(socketserver.TCPServer):
-    def __init__(self, server_address, handler_class=QueryRequestHandler):
-        self.adapter = Adapter()
+            
+    def __init__(self, config, handler_class=QueryRequestHandler):
+        self.adapter = Adapter(str(config["impAddress"]), config["impPort"], config["timeout"], config["interface"], config["oracleTableURL"])
         self.adapter.tracker.start()
         self.logger = logging.getLogger("Server")
         self.logger.info("Initialising server...")
-        socketserver.TCPServer.__init__(self, server_address, handler_class)
+        socketserver.TCPServer.__init__(self, ("0.0.0.0", config["port"]), handler_class)
         return
 
+def loadConfig(path):
+    with open(path, "r") as stream:
+        return yaml.safe_load(stream)["adapter"]
 
-address = ("0.0.0.0", 3333)
-server = AdapterServer(address, QueryRequestHandler)
+config = loadConfig("/root/config.yaml")
+server = AdapterServer(config, QueryRequestHandler)
 
 if __name__ == "__main__":
     server.serve_forever()

@@ -18,10 +18,10 @@ logging.basicConfig(level=logging.DEBUG, format="%(name)s: %(message)s")
 class Mapper:
     process = None
     sourcePort: int = random.randint(1024, 65535)
-    destinationPort: int = 44344
     logger = logging.getLogger("Mapper")
 
-    def __init__(self):
+    def __init__(self, impPort):
+        self.destinationPort = impPort
         self.process = subprocess.Popen(
             shlex.split(
                 'java -cp "/code/Mapper/dist/TCPMapper.jar:/code/Mapper/lib/*" Mapper'

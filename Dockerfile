@@ -1,6 +1,6 @@
 FROM python:3.11-alpine
 RUN apk add --no-cache --update sudo openjdk13 apache-ant build-base bash busybox-extras libffi-dev tcpdump libpcap-dev iptables curl libpq-dev
-RUN pip3 install --pre "scapy[basic]" pcapy-ng impacket sqlalchemy psycopg2 jsons
+RUN pip3 install "scapy[basic]" pcapy-ng impacket sqlalchemy psycopg2 jsons pyyaml
 RUN curl -o /usr/bin/wait-for-it https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh && chmod +x /usr/bin/wait-for-it
 COPY . /code
 WORKDIR /code
