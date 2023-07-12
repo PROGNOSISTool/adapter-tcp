@@ -108,7 +108,7 @@ class Tracker(threading.Thread):
             "PA",
         ]
         if not isRet:
-            if "P" in response.flags and "A" in response.flags and response.payload > 0:
+            if "P" in response.flags and "A" in response.flags and len(response.payload) > 0:
                 for (src_port, dst_port), seq, ack, flags in self.responseHistory:
                     if (
                         (src_port, dst_port) == (tcp_src_port, tcp_dst_port)
