@@ -92,7 +92,7 @@ class Tracker(threading.Thread):
                     self.lastResponse = response
                     self._received.set()
 
-    def isRetransmit(self, tcp_src_port, tcp_dst_port, response):
+    def isRetransmit(self, tcp_src_port, tcp_dst_port, response: ConcreteSymbol):
         isRet = (
             (tcp_src_port, tcp_dst_port),
             response.seqNumber,
@@ -112,7 +112,7 @@ class Tracker(threading.Thread):
                 for (src_port, dst_port), seq, ack, flags in self.responseHistory:
                     if (
                         (src_port, dst_port) == (tcp_src_port, tcp_dst_port)
-                        and (seq == response.seq)
+                        and (seq == response.seqNumber)
                         and "P" in flags
                         and "A" in flags
                     ):
