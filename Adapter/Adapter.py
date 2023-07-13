@@ -135,7 +135,7 @@ class QueryRequestHandler(socketserver.StreamRequestHandler):
                         self.logger.info("Sending answer: " + answer)
                         self.wfile.write(bytearray(answer + "\n", "utf-8"))
             else:
-                self.wfile.write(bytearray("NIL\n", "utf-8"))
+                return
         sys.exit(0)
 
 
