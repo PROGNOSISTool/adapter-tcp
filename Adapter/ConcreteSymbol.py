@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 import jsons
 import re
 
@@ -14,15 +14,15 @@ class ConcreteSymbol:
     destinationPort: int = 80
     seqNumber: int = 0
     ackNumber: int = 0
-    dataOffset: int = None
+    dataOffset: Optional[int] = None
     reserved: int = 0
     flags: str = ""
     window: int = 8192
-    checksum: str = None
+    checksum: Optional[str] = None
     urgentPointer: int = 0
     payload: str = ""
 
-    def __init__(self, packet: Packet = None, string: str = None):
+    def __init__(self, packet: Optional[Packet] = None, string: Optional[str] = None):
         if packet is not None:
             self.isNull = False
             self.sourcePort = packet[TCP].sport
@@ -39,8 +39,11 @@ class ConcreteSymbol:
                 self.payload = packet[Raw].load.decode("utf-8")
         if string is not None:
             self.isNull = False
-            pattern = re.compile("([A-Z+]+)\(([0-9]+),([0-9]+),([0-9]+)\)")
+            pattern = re.compile(r"([A-Z+]+)\(([0-9]+),([0-9]+),([0-9]+)\)")
             capture = pattern.match(string)
+            if capture is None:
+                raise ValueError("Invalid concrete syntax:", string)
+            
             self.flags = capture.group(1)
             if "+" in self.flags:
                 self.flags = "".join(map(lambda x: x[0], self.flags.split("+")))
@@ -82,5 +85,5 @@ class ConcreteOrderedPair:
         self.concreteInputs = inputs
         self.concreteOutputs = outputs
 
-    def toJSON(self):
+    def toJSON(self) -> str:
         return jsons.dumps(self)

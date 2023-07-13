@@ -16,13 +16,11 @@ logging.basicConfig(level=logging.DEBUG, format="%(name)s: %(message)s")
 
 
 class Mapper:
-    process = None
-    sourcePort: int = random.randint(1024, 65535)
-    logger = logging.getLogger("Mapper")
-
     def __init__(self, impPort):
         self.destinationPort = impPort
-        self.process = subprocess.Popen(
+        self.sourcePort: int = random.randint(1024, 65535)
+        self.logger = logging.getLogger("Mapper")
+        self.process: subprocess.Popen = subprocess.Popen(
             shlex.split(
                 'java -cp "/code/Mapper/dist/TCPMapper.jar:/code/Mapper/lib/*" Mapper'
             ),
@@ -30,10 +28,15 @@ class Mapper:
             stdout=subprocess.PIPE,
         )
 
+    def writeAndRead(self, input: str) -> str:
+        if self.process.stdin is not None and self.process.stdout is not None:
+            self.process.stdin.write(bytearray(input + "\n", "utf-8"))
+            self.process.stdin.flush()
+            return self.process.stdout.readline().decode("utf-8").rstrip("\n")
+        raise ValueError("Could not reach mapper process pipes.")
+
     def abstractToConcrete(self, symbol: AbstractSymbol) -> Optional[Packet]:
-        self.process.stdin.write(bytearray("ABSTRACT " + str(symbol) + "\n", "utf-8"))
-        self.process.stdin.flush()
-        out = self.process.stdout.readline().decode("utf-8").rstrip("\n")
+        out = self.writeAndRead("ABSTRACT " + str(symbol))
         self.logger.debug("GOT: " + out)
 
         abs = AbstractSymbol(string=out)
@@ -59,9 +62,7 @@ class Mapper:
         return packet
 
     def concreteToAbstract(self, symbol: ConcreteSymbol) -> AbstractSymbol:
-        self.process.stdin.write(bytearray("CONCRETE " + str(symbol) + "\n", "utf-8"))
-        self.process.stdin.flush()
-        self.process.stdout.readline().decode("utf-8").rstrip("\n")
+        self.writeAndRead("CONCRETE " + str(symbol))
         abs = AbstractSymbol(
             flags=symbol.flags,
             seqNumber=symbol.seqNumber,
@@ -72,15 +73,13 @@ class Mapper:
 
     def randomPayload(self, size: int) -> str:
         payload = ""
-        for char in range(size):
+        for _ in range(size):
             payload += random.choice(string.ascii_letters)
         return payload
 
     def reset(self):
         self.sourcePort = random.randint(1024, 65535)
-        self.process.stdin.write(bytearray("RESET" + "\n", "utf-8"))
-        self.process.stdin.flush()
-        self.process.stdout.readline().decode("utf-8")
+        self.writeAndRead("RESET")
 
-    def stop(self):
+    def stop(self) -> None:
         self.process.kill()

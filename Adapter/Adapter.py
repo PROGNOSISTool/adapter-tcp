@@ -1,12 +1,12 @@
-from typing import List
 import socket
 import socketserver
 import sys
 import yaml
-from scapy.all import *
+from scapy.all import send
 from scapy.layers.inet import IP, TCP
-from Mapper import Mapper
+
 from AbstractSymbol import AbstractSymbol, AbstractOrderedPair
+from Mapper import Mapper
 from ConcreteSymbol import ConcreteSymbol, ConcreteOrderedPair
 from Tracker import Tracker
 from OracleTable import OracleTable
@@ -17,24 +17,32 @@ logging.basicConfig(level=logging.DEBUG, format="%(name)s: %(message)s")
 
 
 class Adapter:
-    
-    def __init__(self, impIp, impPort, timeout, interface, oracleTableURL):
-        self.mapper =  Mapper(impPort)
-        self.localAddr = socket.gethostbyname(socket.gethostname())
-        self.impAddress = socket.gethostbyname(impIp)
-        self.connection = IP(src=self.localAddr, dst=self.impAddress, flags="DF", version=4)
-        self.oracleTable = OracleTable(oracleTableURL)
-        self.timeout = timeout
-        self.interface = interface
-        self.tracker = Tracker(interface, self.impAddress)
-        self.logger = logging.getLogger("Adapter")
+    def __init__(
+        self,
+        impIp: str,
+        impPort: int,
+        timeout: float,
+        interface: str,
+        oracleTableURL: str,
+    ):
+        self.mapper = Mapper(impPort)
+        self.localAddr: str = socket.gethostbyname(socket.gethostname())
+        self.impAddress: str = socket.gethostbyname(impIp)
+        self.connection: IP = IP(
+            src=self.localAddr, dst=self.impAddress, flags="DF", version=4
+        )
+        self.oracleTable: OracleTable = OracleTable(oracleTableURL)
+        self.timeout: float = timeout
+        self.interface: str = interface
+        self.tracker: Tracker = Tracker(interface, self.impAddress)
+        self.logger: logging.Logger = logging.getLogger("Adapter")
         return
 
-    def stop(self):
+    def stop(self) -> None:
         self.tracker.stop()
         self.mapper.stop()
 
-    def reset(self):
+    def reset(self) -> None:
         self.logger.info("Sending RESET...")
         self.handleQuery("RST(?,?,?)")
         self.mapper.reset()
@@ -42,10 +50,10 @@ class Adapter:
 
     def handleQuery(self, query: str) -> str:
         answers = []
-        abstractSymbolsIn: List[AbstractSymbol] = []
-        concreteSymbolsIn: List[AbstractSymbol] = []
-        abstractSymbolsOut: List[ConcreteSymbol] = []
-        concreteSymbolsOut: List[ConcreteSymbol] = []
+        abstractSymbolsIn: list[AbstractSymbol] = []
+        concreteSymbolsIn: list[ConcreteSymbol] = []
+        abstractSymbolsOut: list[AbstractSymbol] = []
+        concreteSymbolsOut: list[ConcreteSymbol] = []
         for symbol in query.split(" "):
             self.logger.info("Processing Symbol: " + symbol)
 
@@ -113,34 +121,60 @@ class QueryRequestHandler(socketserver.StreamRequestHandler):
             if query != "":
                 self.logger.info("Received query: " + query)
                 if query == "STOP":
-                    self.server.adapter.stop()
-                    self.wfile.write(bytearray("STOP" + "\n", "utf-8"))
-                    break
+                    if isinstance(self.server, AdapterServer):
+                        self.server.adapter.stop()
+                        self.wfile.write(bytearray("STOP" + "\n", "utf-8"))
+                        break
                 elif query == "RESET":
-                    self.server.adapter.reset()
-                    self.wfile.write(bytearray("RESET" + "\n", "utf-8"))
+                    if isinstance(self.server, AdapterServer):
+                        self.server.adapter.reset()
+                        self.wfile.write(bytearray("RESET" + "\n", "utf-8"))
                 else:
-                    answer = self.server.adapter.handleQuery(query)
-                    self.logger.info("Sending answer: " + answer)
-                    self.wfile.write(bytearray(answer + "\n", "utf-8"))
+                    if isinstance(self.server, AdapterServer):
+                        answer = self.server.adapter.handleQuery(query)
+                        self.logger.info("Sending answer: " + answer)
+                        self.wfile.write(bytearray(answer + "\n", "utf-8"))
             else:
                 self.wfile.write(bytearray("NIL\n", "utf-8"))
         sys.exit(0)
 
 
 class AdapterServer(socketserver.TCPServer):
-            
     def __init__(self, config, handler_class=QueryRequestHandler):
-        self.adapter = Adapter(str(config["impAddress"]), config["impPort"], config["timeout"], config["interface"], config["oracleTableURL"])
+        self.adapter = Adapter(
+            str(config["impAddress"]),
+            config["impPort"],
+            config["timeout"],
+            config["interface"],
+            config["oracleTableURL"],
+        )
         self.adapter.tracker.start()
         self.logger = logging.getLogger("Server")
         self.logger.info("Initialising server...")
-        socketserver.TCPServer.__init__(self, ("0.0.0.0", config["port"]), handler_class)
+        socketserver.TCPServer.__init__(
+            self, ("0.0.0.0", config["port"]), handler_class
+        )
         return
+
+    def handle_error(self, request, client_address):
+        print("-" * 40, file=sys.stderr)
+        print(
+            "Exception occurred during processing of request from",
+            client_address,
+            file=sys.stderr,
+        )
+        import traceback
+
+        traceback.print_exc()
+        print("-" * 40, file=sys.stderr)
+        print("Crashing...")
+        sys.exit(1)
+
 
 def loadConfig(path):
     with open(path, "r") as stream:
         return yaml.safe_load(stream)["adapter"]
+
 
 config = loadConfig("/root/config.yaml")
 server = AdapterServer(config, QueryRequestHandler)

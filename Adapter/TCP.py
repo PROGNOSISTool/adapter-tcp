@@ -1,9 +1,10 @@
-from enum import Enum
+from enum import StrEnum
 import json
 import logging
+from typing import Optional
 
 
-class Flag(Enum):
+class Flag(StrEnum):
     SYN = "S"
     ACK = "A"
     RST = "R"
@@ -15,15 +16,15 @@ class Flag(Enum):
     NS = "N"
     UNKNOWN = "?"
 
-    def toChar(self):
+    def toChar(self) -> str:
         return self.value
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
 
 class FlagSet(set):
-    def __init__(self, flags: str = None):
+    def __init__(self, flags: Optional[str] = None) -> None:
         super().__init__()
         if flags is not None:
             for char in flags:

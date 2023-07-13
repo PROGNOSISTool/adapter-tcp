@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 import jsons
 import re
 from TCP import FlagSet
@@ -7,17 +7,17 @@ from TCP import FlagSet
 class AbstractSymbol:
     isNull: bool = True
     flags: FlagSet = FlagSet()
-    seqNumber: int = None
-    ackNumber: int = None
-    payloadLength: int = None
+    seqNumber: Optional[int] = None
+    ackNumber: Optional[int] = None
+    payloadLength: Optional[int] = None
 
     def __init__(
         self,
-        string: str = None,
-        flags: str = None,
-        seqNumber: int = None,
-        ackNumber: int = None,
-        payloadLength: int = None,
+        string: Optional[str] = None,
+        flags:  Optional[str] = None,
+        seqNumber:  Optional[int] = None,
+        ackNumber:  Optional[int] = None,
+        payloadLength:  Optional[int] = None,
     ):
         if flags is not None:
             self.isNull = False
@@ -27,8 +27,12 @@ class AbstractSymbol:
         self.payloadLength = payloadLength
 
         if string is not None:
-            pattern = re.compile("([A-Z+]+)\(([0-9?]+),([0-9?]+),([0-9?]+)\)")
+            pattern = re.compile(r"([A-Z+]+)\(([0-9?]+),([0-9?]+),([0-9?]+)\)")
             capture = pattern.match(string)
+
+            if capture is None:
+                raise ValueError("Invalid abstract syntax:", string)
+            
             self.isNull = False
             self.flags = FlagSet(
                 "".join(map(lambda x: x[0], capture.group(1).split("+")))
@@ -83,5 +87,5 @@ class AbstractOrderedPair:
         aoString = "[{}]".format(", ".join(concreteInputStrings))
         return "({},{})".format(aiString, aoString)
 
-    def toJSON(self):
+    def toJSON(self) -> str:
         return jsons.dumps(self)
