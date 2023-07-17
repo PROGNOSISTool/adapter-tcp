@@ -1,6 +1,6 @@
 # From: https://gitlab.science.ru.nl/pfiteraubrostean/tcp-learner/-/blob/master/Adapter/tracker.py
 
-from typing import Optional, Union
+from typing import Union
 from pcapy import open_live
 from impacket.ImpactDecoder import EthDecoder, Dot11WPA2Decoder, Decoder
 from impacket.ImpactPacket import IP, TCP
@@ -80,7 +80,7 @@ class Tracker(threading.Thread):
             response.seqNumber,
             response.ackNumber,
             response.flags,
-        ) in self.responseHistory and response.flags.replace("U", "") in [
+        ) in self.responseHistory and response.flags.asScapy().replace("U", "") in [
             "SA",
             "AS",
             "AF",
@@ -90,56 +90,19 @@ class Tracker(threading.Thread):
             "PA",
         ]
         if not isRet:
-            if "P" in response.flags and "A" in response.flags and len(response.payload) > 0:
+            if response.flags.PSH and response.flags.ACK and len(response.payload) > 0:
                 for (src_port, dst_port), seq, ack, flags in self.responseHistory:
                     if (
                         (src_port, dst_port) == (tcp_src_port, tcp_dst_port)
                         and (seq == response.seqNumber)
-                        and "P" in flags
-                        and "A" in flags
+                        and flags.PSH
+                        and flags.ACK
                     ):
                         isRet = True
         return isRet
 
-    def processResponse(self, response):
-        if not response.isNull:
-            self.lastResponse = response
-            if (
-                response.flags == "SA" or response.flags == "AS"
-            ) and response in self.lastResponses:
-                print("ignoring SA retransmission " + response.__str__())
-            else:
-                print("non SA-ret packet:" + response.__str__())
-
-    # MAKE SURE the order of checking/appending characters is the same here as it is in the sender
-    def impacketResponseParse(self, tcpPacket):
-        response = ConcreteSymbol()
-        if isinstance(tcpPacket, TCP):
-            tcp_syn = tcpPacket.get_th_seq()
-            tcp_ack = tcpPacket.get_th_ack()
-
-            flags = "F" if tcpPacket.get_FIN() == 1 else ""
-            flags += "S" if tcpPacket.get_SYN() == 1 else ""
-            flags += "R" if tcpPacket.get_RST() == 1 else ""
-            flags += "P" if tcpPacket.get_PSH() == 1 else ""
-            flags += "A" if tcpPacket.get_ACK() == 1 else ""
-            flags += "U" if tcpPacket.get_URG() == 1 else ""
-            payload: Optional[str] = tcpPacket.get_data_as_string()
-            if payload is None:
-                payload = ""
-
-            response = ConcreteSymbol(
-                None,
-                flags
-                + "("
-                + str(tcp_syn)
-                + ","
-                + str(tcp_ack)
-                + ","
-                + str(len(payload))
-                + ")",
-            )
-        return response
+    def impacketResponseParse(self, tcpPacket: TCP):
+        return ConcreteSymbol(packet = tcpPacket)
 
     # clears all last responses for all ports (keep that in mind if you have responses on several ports)
     # this is done because when learning, we only care about one port

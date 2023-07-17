@@ -14,18 +14,11 @@ class AbstractSymbol:
     def __init__(
         self,
         string: Optional[str] = None,
-        flags:  Optional[str] = None,
+        flags:  str = "",
         seqNumber:  Optional[int] = None,
         ackNumber:  Optional[int] = None,
         payloadLength:  Optional[int] = None,
     ):
-        if flags is not None:
-            self.isNull = False
-        self.flags = FlagSet(flags)
-        self.seqNumber = seqNumber
-        self.ackNumber = ackNumber
-        self.payloadLength = payloadLength
-
         if string is not None:
             pattern = re.compile(r"([A-Z+]+)\(([0-9?]+),([0-9?]+),([0-9?]+)\)")
             capture = pattern.match(string)
@@ -42,12 +35,21 @@ class AbstractSymbol:
             self.payloadLength = (
                 int(capture.group(4)) if capture.group(4) != "?" else None
             )
+        
+        elif flags is not None:
+            self.isNull = False
+            self.flags = FlagSet(flags)
+            self.seqNumber = seqNumber
+            self.ackNumber = ackNumber
+            self.payloadLength = payloadLength
+
+        
 
     def __str__(self) -> str:
         if self.isNull:
             return "NIL"
         else:
-            flagsString = str(self.flags)
+            flagsString = self.flags.asHuman()
             seqString = "?" if self.seqNumber is None else str(self.seqNumber)
             ackString = "?" if self.ackNumber is None else str(self.ackNumber)
             payloadLenString = (

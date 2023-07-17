@@ -64,7 +64,7 @@ class Mapper:
     def concreteToAbstract(self, symbol: ConcreteSymbol) -> AbstractSymbol:
         self.writeAndRead("CONCRETE " + str(symbol))
         abs = AbstractSymbol(
-            flags=symbol.flags,
+            flags=symbol.flags.asScapy(),
             seqNumber=symbol.seqNumber,
             ackNumber=symbol.ackNumber,
             payloadLength=len(symbol.payload),
