@@ -1,6 +1,7 @@
 import socket
 import socketserver
 import sys
+from typing import Optional
 import yaml
 from scapy.all import send
 from scapy.layers.inet import IP, TCP
@@ -28,9 +29,7 @@ class Adapter:
         self.mapper = Mapper(impPort)
         self.localAddr: str = socket.gethostbyname(socket.gethostname())
         self.impAddress: str = socket.gethostbyname(impIp)
-        self.connection: IP = IP(
-            src=self.localAddr, dst=self.impAddress, flags="DF", version=4
-        )
+        self.connection: IP = IP(src=self.localAddr, dst=self.impAddress, flags="DF", version=4)
         self.oracleTable: OracleTable = OracleTable(oracleTableURL)
         self.timeout: float = timeout
         self.interface: str = interface
@@ -50,37 +49,36 @@ class Adapter:
 
     def handleQuery(self, query: str) -> str:
         answers = []
-        abstractSymbolsIn: list[AbstractSymbol] = []
-        concreteSymbolsIn: list[ConcreteSymbol] = []
-        abstractSymbolsOut: list[AbstractSymbol] = []
-        concreteSymbolsOut: list[ConcreteSymbol] = []
+        abstractSymbolsIn: list[Optional[AbstractSymbol]] = []
+        concreteSymbolsIn: list[Optional[ConcreteSymbol]] = []
+        abstractSymbolsOut: list[Optional[AbstractSymbol]] = []
+        concreteSymbolsOut: list[Optional[ConcreteSymbol]] = []
         for symbol in query.split(" "):
             self.logger.info("Processing Symbol: " + symbol)
 
-            abstractSymbolIn: AbstractSymbol = AbstractSymbol(string=symbol)
+            abstractSymbolIn: AbstractSymbol = AbstractSymbol(symbol)
             self.logger.info("Abstract Symbol In: " + str(abstractSymbolIn))
 
             packetIn = self.mapper.abstractToConcrete(abstractSymbolIn)
 
             if packetIn is None:
-                concreteSymbolIn: ConcreteSymbol = ConcreteSymbol()
-                concreteSymbolOut: ConcreteSymbol = ConcreteSymbol()
-                abstractSymbolOut: AbstractSymbol = AbstractSymbol()
+                concreteSymbolIn: Optional[ConcreteSymbol] = None
+                concreteSymbolOut: Optional[ConcreteSymbol] = None
+                abstractSymbolOut: Optional[AbstractSymbol] = None
             else:
-                concreteSymbolIn: ConcreteSymbol = ConcreteSymbol(packet=packetIn)
+                concreteSymbolIn: Optional[ConcreteSymbol] = ConcreteSymbol(packet=packetIn)
                 self.logger.info("Concrete Symbol In: " + concreteSymbolIn.toJSON())
 
                 self.tracker.clearLastResponse()
                 send([self.connection / packetIn], iface=self.interface, verbose=True)
-                concreteSymbolOut: ConcreteSymbol = self.tracker.sniffForResponse(
+                concreteSymbolOut: Optional[ConcreteSymbol] = self.tracker.sniffForResponse(
                     packetIn[TCP].dport, packetIn[TCP].sport, self.timeout
                 )
-                self.logger.info("Concrete Symbol Out: " + concreteSymbolOut.toJSON())
 
-                if not concreteSymbolOut.isNull:
-                    abstractSymbolOut: AbstractSymbol = self.mapper.concreteToAbstract(
-                        concreteSymbolOut
-                    )
+                self.logger.info("Concrete Symbol Out: " + concreteSymbolOut.toJSON() if concreteSymbolOut is not None else "null")
+
+                if concreteSymbolOut is not None:
+                    abstractSymbolOut: Optional[AbstractSymbol] = self.mapper.concreteToAbstract(concreteSymbolOut)
                     # Match abstraction level.
                     if abstractSymbolIn.seqNumber is None:
                         abstractSymbolOut.seqNumber = None
@@ -89,9 +87,8 @@ class Adapter:
                     if abstractSymbolIn.payloadLength is None:
                         abstractSymbolOut.payloadLength = None
                 else:
-                    concreteSymbolOut.isNull = True
-                    abstractSymbolOut: AbstractSymbol = AbstractSymbol()
-                    abstractSymbolOut.isNull = True
+                    concreteSymbolOut = None
+                    abstractSymbolOut = None
 
                 self.logger.info("Abstract Symbol Out: " + str(abstractSymbolOut))
 
@@ -151,9 +148,7 @@ class AdapterServer(socketserver.TCPServer):
         self.adapter.tracker.start()
         self.logger = logging.getLogger("Server")
         self.logger.info("Initialising server...")
-        socketserver.TCPServer.__init__(
-            self, ("0.0.0.0", config["port"]), handler_class
-        )
+        socketserver.TCPServer.__init__(self, ("0.0.0.0", config["port"]), handler_class)
         return
 
     def handle_error(self, request, client_address):

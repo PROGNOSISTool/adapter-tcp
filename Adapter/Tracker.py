@@ -1,12 +1,13 @@
 # From: https://gitlab.science.ru.nl/pfiteraubrostean/tcp-learner/-/blob/master/Adapter/tracker.py
 
-from typing import Union
+from typing import Optional
 from pcapy import open_live
 from impacket.ImpactDecoder import EthDecoder, Dot11WPA2Decoder, Decoder
 from impacket.ImpactPacket import IP, TCP
 import time
 import threading
 from ConcreteSymbol import ConcreteSymbol
+
 
 class Tracker(threading.Thread):
     serverPort = 0
@@ -24,11 +25,11 @@ class Tracker(threading.Thread):
         self.daemon = True
         self.readTimeout = readTimeout
         self.serverIp = serverIp
-        self.lastResponse: ConcreteSymbol = ConcreteSymbol()
+        self.lastResponse: Optional[ConcreteSymbol] = None
         self.lastResponses: dict[tuple[int, int], ConcreteSymbol] = dict()
         self.responseHistory = set()
 
-    def getDecoder(self, interfaceType) -> Union[EthDecoder, Dot11WPA2Decoder]:
+    def getDecoder(self, interfaceType) -> EthDecoder | Dot11WPA2Decoder:
         if interfaceType == 0:
             return EthDecoder()
         else:
@@ -51,7 +52,7 @@ class Tracker(threading.Thread):
             packet = self.decoder.decode(data)
             if packet is None:
                 return
-            
+
             l2 = packet.child()
             if isinstance(l2, IP):
                 l3 = l2.child()
@@ -92,22 +93,17 @@ class Tracker(threading.Thread):
         if not isRet:
             if response.flags.PSH and response.flags.ACK and len(response.payload) > 0:
                 for (src_port, dst_port), seq, ack, flags in self.responseHistory:
-                    if (
-                        (src_port, dst_port) == (tcp_src_port, tcp_dst_port)
-                        and (seq == response.seqNumber)
-                        and flags.PSH
-                        and flags.ACK
-                    ):
+                    if (src_port, dst_port) == (tcp_src_port, tcp_dst_port) and (seq == response.seqNumber) and flags.PSH and flags.ACK:
                         isRet = True
         return isRet
 
     def impacketResponseParse(self, tcpPacket: TCP):
-        return ConcreteSymbol(packet = tcpPacket)
+        return ConcreteSymbol(tcpPacket)
 
     # clears all last responses for all ports (keep that in mind if you have responses on several ports)
     # this is done because when learning, we only care about one port
     def clearLastResponse(self) -> None:
-        self.lastResponse = ConcreteSymbol()
+        self.lastResponse = None
         self.lastResponses.clear()
 
     def reset(self) -> None:
@@ -115,15 +111,15 @@ class Tracker(threading.Thread):
         self.responseHistory.clear()
         self._received.clear()
 
-    def sniffForResponse(self, serverPort: int, senderPort: int, waitTime) -> ConcreteSymbol:
+    def sniffForResponse(self, serverPort: int, senderPort: int, waitTime) -> Optional[ConcreteSymbol]:
         div = waitTime / 10
-        response = ConcreteSymbol()
+        response = None
         # print "sniffing for response ", waitTime
-        for i in range(0, 9):
+        for _ in range(10):
             # print "waiting... ", div
             time.sleep(div)
             response = self.getLastResponse(serverPort, senderPort)
-            if not response.isNull:
+            if response is not None:
                 break
                 # self._received.wait(timeout=waitTime)
         # response = self.getLastResponse(serverPort, senderPort)
@@ -131,20 +127,16 @@ class Tracker(threading.Thread):
         return response
 
     # fetches the last response from an active port. If no response was sent, then it returns a null symbol.
-    def getLastResponse(self, serverPort: int, senderPort: int) -> ConcreteSymbol:
+    def getLastResponse(self, serverPort: int, senderPort: int) -> Optional[ConcreteSymbol]:
         hist = self.lastResponses.get((serverPort, senderPort))
         if hist is not None:
             return hist
-        return ConcreteSymbol()
-
 
     def run(self) -> None:
         self.trackPackets()
 
     def trackPackets(self) -> None:
-        self.pcap = open_live(
-            self.interface, self.max_bytes, self.promiscuous, self.readTimeout
-        )
+        self.pcap = open_live(self.interface, self.max_bytes, self.promiscuous, self.readTimeout)
         self.pcap.setfilter("tcp and ip src " + str(self.serverIp))
         while True:
             (header, packet) = self.pcap.next()

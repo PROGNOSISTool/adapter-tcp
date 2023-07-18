@@ -21,9 +21,7 @@ class Mapper:
         self.sourcePort: int = random.randint(1024, 65535)
         self.logger = logging.getLogger("Mapper")
         self.process: subprocess.Popen = subprocess.Popen(
-            shlex.split(
-                'java -cp "/code/Mapper/dist/TCPMapper.jar:/code/Mapper/lib/*" Mapper'
-            ),
+            shlex.split('java -cp "/code/Mapper/dist/TCPMapper.jar:/code/Mapper/lib/*" Mapper'),
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
         )
@@ -37,9 +35,8 @@ class Mapper:
 
     def abstractToConcrete(self, symbol: AbstractSymbol) -> Optional[Packet]:
         out = self.writeAndRead("ABSTRACT " + str(symbol))
-        self.logger.debug("GOT: " + out)
 
-        abs = AbstractSymbol(string=out)
+        abs = AbstractSymbol(out)
 
         if abs.seqNumber is None or abs.ackNumber is None:
             return None
@@ -63,12 +60,7 @@ class Mapper:
 
     def concreteToAbstract(self, symbol: ConcreteSymbol) -> AbstractSymbol:
         self.writeAndRead("CONCRETE " + str(symbol))
-        abs = AbstractSymbol(
-            flags=symbol.flags.asScapy(),
-            seqNumber=symbol.seqNumber,
-            ackNumber=symbol.ackNumber,
-            payloadLength=len(symbol.payload),
-        )
+        abs = AbstractSymbol((symbol.flags.asScapy(), symbol.seqNumber, symbol.ackNumber, len(symbol.payload)))
         return abs
 
     def randomPayload(self, size: int) -> str:
