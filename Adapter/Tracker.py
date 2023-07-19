@@ -60,6 +60,8 @@ class Tracker(threading.Thread):
                     tcp_src_port = l3.get_th_sport()
                     tcp_dst_port = l3.get_th_dport()
                     response = self.impacketResponseParse(l3)
+                    print("PACKET:", response)
+                    print("HIST:", self.responseHistory)
                     if self.isRetransmit(tcp_src_port, tcp_dst_port, response):
                         print("ignoring retransmission: ", response.__str__())
                     else:
@@ -80,7 +82,7 @@ class Tracker(threading.Thread):
             (tcp_src_port, tcp_dst_port),
             response.seqNumber,
             response.ackNumber,
-            response.flags,
+            response.flags.asScapy(),
         ) in self.responseHistory and response.flags.asScapy().replace("U", "") in [
             "SA",
             "AS",
