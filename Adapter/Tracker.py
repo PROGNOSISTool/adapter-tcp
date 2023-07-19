@@ -90,11 +90,7 @@ class Tracker(threading.Thread):
             "P",
             "PA",
         ]
-        if not isRet:
-            if response.flags.PSH and response.flags.ACK and len(response.payload) > 0:
-                for (src_port, dst_port), seq, ack, flags in self.responseHistory:
-                    if (src_port, dst_port) == (tcp_src_port, tcp_dst_port) and (seq == response.seqNumber) and flags.PSH and flags.ACK:
-                        isRet = True
+
         return isRet
 
     def impacketResponseParse(self, tcpPacket: TCP):
