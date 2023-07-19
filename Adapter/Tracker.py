@@ -27,7 +27,7 @@ class Tracker(threading.Thread):
         self.serverIp = serverIp
         self.lastResponse: Optional[ConcreteSymbol] = None
         self.lastResponses: dict[tuple[int, int], ConcreteSymbol] = dict()
-        self.responseHistory = set()
+        self.responseHistory: set[tuple[tuple[int, int], int, int, str]] = set()
 
     def getDecoder(self, interfaceType) -> EthDecoder | Dot11WPA2Decoder:
         if interfaceType == 0:
@@ -68,7 +68,7 @@ class Tracker(threading.Thread):
                                 (tcp_src_port, tcp_dst_port),
                                 response.seqNumber,
                                 response.ackNumber,
-                                response.flags,
+                                response.flags.asScapy(),
                             )
                         )
                         self.lastResponses[(tcp_src_port, tcp_dst_port)] = response
@@ -91,6 +91,13 @@ class Tracker(threading.Thread):
             "PA",
         ]
 
+        # Technically, seq numbers don't identify packets but data.
+        # So we could get a packet with a previously seen SEQ number, except that now it actualy carries data.
+        if not isRet:
+            if response.flags.PSH and response.flags.ACK and len(response.payload) > 0:
+                for (src_port, dst_port), seq, ack, flags in self.responseHistory:
+                    if (src_port, dst_port) == (tcp_src_port, tcp_dst_port) and (seq == response.seqNumber) and "P" in flags and "A" in flags:
+                        isRet = True
         return isRet
 
     def impacketResponseParse(self, tcpPacket: TCP):
