@@ -35,7 +35,6 @@ class Mapper:
 
     def abstractToConcrete(self, symbol: AbstractSymbol) -> Optional[Packet]:
         out = self.writeAndRead("ABSTRACT " + str(symbol))
-
         abs = AbstractSymbol(out)
 
         if abs.seqNumber is None or abs.ackNumber is None:
@@ -59,9 +58,8 @@ class Mapper:
         return packet
 
     def concreteToAbstract(self, symbol: ConcreteSymbol) -> AbstractSymbol:
-        self.writeAndRead("CONCRETE " + str(symbol))
-        abs = AbstractSymbol((symbol.flags.asScapy(), symbol.seqNumber, symbol.ackNumber, len(symbol.payload)))
-        return abs
+        out = self.writeAndRead("CONCRETE " + str(symbol))
+        return AbstractSymbol(out)
 
     def randomPayload(self, size: int) -> str:
         payload = ""

@@ -40,7 +40,7 @@ public class Mapper extends InvlangMapper {
         if (lastLearnedSeqInt == null || lastLearnedSeqInt == InvlangMapper.NOT_SET) {
             concSeq = (int) Calculator.randWithinRange(1000L, 0xffffL);
         } else {
-            concSeq = (int) Calculator.sum(lastLearnedSeqInt, Calculator.randWithinRange(70000,100000));
+            concSeq = (int) Calculator.sum(lastLearnedSeqInt, Calculator.randWithinRange(70000, 100000));
         }
 
         Integer concAck = (int) Calculator.randWithinRange(1000L, 0xffffL);
@@ -54,7 +54,7 @@ public class Mapper extends InvlangMapper {
             for (long num : pointsOfInterestLong) {
                 pointsOfInterest.add((int) num);
             }
-            //pointsOfInterest.add(0);
+            // pointsOfInterest.add(0);
             for (Integer possibleAck : pointsOfInterest) {
                 if (checkIfValidConcretization(flags, absSeq, concSeq, absAck, possibleAck, payloadLength)) {
                     concAck = possibleAck;
@@ -85,10 +85,10 @@ public class Mapper extends InvlangMapper {
         if (!isChecked) {
 
             throw new BugException("Cannot concretize the input for the windows mapper:\n" + handler.getState() +
-            		"\nhaving checked these points of interest " + getPointsOfInterest()
+                    "\nhaving checked these points of interest " + getPointsOfInterest()
                     + "\n" + Arrays.asList(Thread.currentThread().getStackTrace()));
         } else {
-            updateMapperWithConcretization(flags,concSeq,concAck, payloadLength);
+            updateMapperWithConcretization(flags, concSeq, concAck, payloadLength);
             long lConcSeq = getUnsignedInt(concSeq), lConcAck = getUnsignedInt(concAck);
             return Serializer.concreteMessageToString(flags, lConcSeq, lConcAck, payloadLength);
         }
@@ -100,11 +100,11 @@ public class Mapper extends InvlangMapper {
         for (Entry<String, Object> entry : this.handler.getState().entrySet()) {
             if (entry.getValue() instanceof Integer) {
                 int value = (Integer) entry.getValue();
-                if (value != InvlangMapper.NOT_SET && !valuesOfInterest.contains((long)value)) {
+                if (value != InvlangMapper.NOT_SET && !valuesOfInterest.contains((long) value)) {
                     long longOfVal = InvlangMapper.getUnsignedInt(value);
-                    for (int i=0; i < 2; i ++) {
-                        if (!valuesOfInterest.contains(longOfVal+i)) {
-                            valuesOfInterest.add((long)(longOfVal+i));
+                    for (int i = 0; i < 2; i++) {
+                        if (!valuesOfInterest.contains(longOfVal + i)) {
+                            valuesOfInterest.add((long) (longOfVal + i));
                         }
                     }
                 }
@@ -114,8 +114,6 @@ public class Mapper extends InvlangMapper {
 
         return valuesOfInterest;
     }
-
-
 
     private boolean checkIfValidConcretization(FlagSet flags, String absSeq, int concSeq,
             String absAck, int concAck, int payloadLength) {
@@ -150,12 +148,12 @@ public class Mapper extends InvlangMapper {
                 mapper.sendReset();
             } else if (command.equals("STOP")) {
                 return;
-            }else {
+            } else {
                 String[] request = command.split(" ");
                 String patternString = "([A-Z+]+)\\(([0-9?]+),([0-9?]+),([0-9?]+)\\)";
                 Pattern pattern = Pattern.compile(patternString);
                 Matcher matcher = pattern.matcher(command);
-                while(matcher.find()) {
+                while (matcher.find()) {
                     if (request[0].equals("ABSTRACT")) {
                         if (matcher.group(1).equals("RST")) {
                             System.out.println(mapper.processOutgoingReset());
@@ -164,10 +162,13 @@ public class Mapper extends InvlangMapper {
                             if (!matcher.group(4).equals("?")) {
                                 payloadLength = Integer.parseInt(matcher.group(4));
                             }
-                            System.out.println(mapper.processOutgoingRequest(new FlagSet(matcher.group(1)), "V", "V", payloadLength));
+                            System.out.println(mapper.processOutgoingRequest(new FlagSet(matcher.group(1)), "V", "V",
+                                    payloadLength));
                         }
                     } else if (request[0].equals("CONCRETE")) {
-                        System.out.println(mapper.processIncomingResponse(new FlagSet(matcher.group(1)), Long.parseLong(matcher.group(2)), Long.parseLong(matcher.group(3)), Integer.parseInt(matcher.group(4))));
+                        System.out.println(mapper.processIncomingResponse(new FlagSet(matcher.group(1)),
+                                Long.parseLong(matcher.group(2)), Long.parseLong(matcher.group(3)),
+                                Integer.parseInt(matcher.group(4))));
                     } else {
                         System.err.println("Got invalid request type: " + request[0]);
                         return;

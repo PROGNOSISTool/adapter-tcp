@@ -4,7 +4,7 @@ public class Serializer {
 	private static final String DATA = "x";
 
 	public static String concreteMessageToString(String flags, long seqNr,
-												 long ackNr) {
+			long ackNr) {
 		StringBuilder result = new StringBuilder();
 
 		String[] flagArray = flags.split("\\+");
@@ -20,35 +20,36 @@ public class Serializer {
 	}
 
 	public static String concreteMessageToString(invlang.types.FlagSet flags, long seqNr,
-												 long ackNr, int payloadLength) {
+			long ackNr, int payloadLength) {
 		StringBuilder sb = new StringBuilder();
 		FlagSet fs = new FlagSet(flags.toInitials());
-		sb.append(fs.toString()).append("(").append(seqNr).append(",").append(ackNr).append(",").append(payloadLength).append(")");
+		sb.append(fs.toString()).append("(").append(seqNr).append(",").append(ackNr).append(",").append(payloadLength)
+				.append(")");
 		return sb.toString();
 	}
 
-
 	public static String concreteMessageToString(FlagSet flags, long seqNr,
-												 long ackNr, int payloadLength) {
+			long ackNr, int payloadLength) {
 		StringBuilder sb = new StringBuilder();
-		sb.append(flags.toString()).append("(").append(seqNr).append(",").append(ackNr).append(",").append(payloadLength).append(")");
+		sb.append(flags.toString()).append("(").append(seqNr).append(",").append(ackNr).append(",")
+				.append(payloadLength).append(")");
 		return sb.toString();
 	}
 
 	public static String abstractMessageToString(invlang.types.FlagSet flags,
-												 String seqValidity, String ackValidity, int payloadLength) {
+			String seqValidity, String ackValidity, int payloadLength) {
 		StringBuilder sb = new StringBuilder();
 		FlagSet fs = new FlagSet(flags.toInitials());
-		sb.append(fs.toString()).append("(").append("?").append(",").append("?")
+		sb.append(fs.toString()).append("(").append(seqValidity).append(",").append(ackValidity)
 				.append(",").append(payloadLength).append(")");
 		return sb.toString();
 	}
 
 	public static String abstractMessageToString(char[] flags,
-												 String seqValidity, String ackValidity, int payloadLength) {
+			String seqValidity, String ackValidity, int payloadLength) {
 		StringBuilder sb = new StringBuilder();
 		FlagSet fs = new FlagSet(flags);
-		sb.append(fs.toString()).append("(").append("?").append(",").append("?")
+		sb.append(fs.toString()).append("(").append(seqValidity).append(",").append(ackValidity)
 				.append(",").append(payloadLength).append(")");
 		return sb.toString();
 	}

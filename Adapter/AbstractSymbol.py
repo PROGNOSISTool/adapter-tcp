@@ -1,26 +1,47 @@
+from enum import Enum, StrEnum, auto
 from typing import List, Optional
 import jsons
 import re
 from TCP import FlagSet
 
 
+class Value(StrEnum):
+    CURRENT = "CURRENT"
+    NEXT = "NEXT"
+    ZERO = "ZERO"
+    FRESH = "FRESH"
+
+validValues = list(map(lambda x: x.value, list(Value)))
+
 class AbstractSymbol:
     flags: FlagSet = FlagSet()
-    seqNumber: Optional[int] = None
-    ackNumber: Optional[int] = None
+    seqNumber: Optional[Value] | int = None
+    ackNumber: Optional[Value] | int = None
     payloadLength: Optional[int] = None
 
-    def __init__(self, symbol: str | tuple[str, int, int, int]):
+    def __init__(self, symbol: str | tuple[str, Optional[Value] | int, Optional[Value] | int, int]):
         if isinstance(symbol, str):
-            pattern = re.compile(r"([A-Z+]+)\(([0-9?]+),([0-9?]+),([0-9?]+)\)")
+            pattern = re.compile(r"([A-Z+]+)\(([A-Z0-9?]+),([A-Z0-9?]+),([0-9?]+)\)")
             capture = pattern.match(symbol)
 
             if capture is None:
                 raise ValueError("Invalid abstract syntax:", symbol)
 
             self.flags = FlagSet("".join(map(lambda x: x[0], capture.group(1).split("+"))))
-            self.seqNumber = int(capture.group(2)) if capture.group(2) != "?" else None
-            self.ackNumber = int(capture.group(3)) if capture.group(3) != "?" else None
+            if capture.group(2) in validValues:
+                self.seqNumber = Value(capture.group(2))
+            elif  capture.group(2).isdigit():
+                self.seqNumber = int(capture.group(2))
+            else:
+                self.seqNumber = None
+
+            if capture.group(3) in validValues:
+                self.ackNumber = Value(capture.group(3))
+            elif  capture.group(3).isdigit():
+                self.ackNumber = int(capture.group(3))
+            else:
+                self.ackNumber = None
+
             self.payloadLength = int(capture.group(4)) if capture.group(4) != "?" else None
 
         else:

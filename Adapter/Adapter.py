@@ -23,6 +23,7 @@ class Adapter:
         impIp: str,
         impPort: int,
         timeout: float,
+        symbolic: bool,
         interface: str,
         oracleTableURL: str,
     ):
@@ -32,6 +33,7 @@ class Adapter:
         self.connection: IP = IP(src=self.localAddr, dst=self.impAddress, flags="DF", version=4)
         self.oracleTable: OracleTable = OracleTable(oracleTableURL)
         self.timeout: float = timeout
+        self.symbolic: bool = symbolic
         self.interface: str = interface
         self.tracker: Tracker = Tracker(interface, self.impAddress)
         self.logger: logging.Logger = logging.getLogger("Adapter")
@@ -80,12 +82,9 @@ class Adapter:
                 if concreteSymbolOut is not None:
                     abstractSymbolOut: Optional[AbstractSymbol] = self.mapper.concreteToAbstract(concreteSymbolOut)
                     # Match abstraction level.
-                    if abstractSymbolIn.seqNumber is None:
+                    if abstractSymbolOut is not None and not self.symbolic:
                         abstractSymbolOut.seqNumber = None
-                    if abstractSymbolIn.ackNumber is None:
                         abstractSymbolOut.ackNumber = None
-                    if abstractSymbolIn.payloadLength is None:
-                        abstractSymbolOut.payloadLength = None
                 else:
                     concreteSymbolOut = None
                     abstractSymbolOut = None
@@ -142,6 +141,7 @@ class AdapterServer(socketserver.TCPServer):
             str(config["impAddress"]),
             config["impPort"],
             config["timeout"],
+            config["symbolic"],
             config["interface"],
             config["oracleTableURL"],
         )
